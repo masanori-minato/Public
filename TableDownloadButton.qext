@@ -1,0 +1,15 @@
+{
+  "name"        : "Table Download Button",
+  "description" : "既存のストレートテーブルのデータをCSVでダウンロードするボタン拡張",
+  "type"        : "visualization",
+  "version"     : "1.0.0",
+  "author"      : "",
+  "homepage"    : "",
+  "keywords"    : "qlik-sense,visualization,download,export,csv",
+  "license"     : "MIT",
+  "icon"        : "download",
+  "preview"     : "",
+  "dependencies": {
+    "qlik-sense": ">=3.0.0"
+  }
+}
