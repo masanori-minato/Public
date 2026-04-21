@@ -1,0 +1,134 @@
+// 都道府県マスタ（インライン）- 都道府県と地域のマッピング（ソート番号付き）
+都道府県マスタ_Raw:
+LOAD * INLINE [
+    都道府県, 地域, 都道府県Sort, 地域Sort
+    北海道, 北海道, 1, 1
+    東京都, 関東, 13, 2
+    神奈川県, 関東, 14, 2
+    埼玉県, 関東, 11, 2
+    千葉県, 関東, 12, 2
+    茨城県, 関東, 8, 2
+    栃木県, 関東, 9, 2
+    群馬県, 関東, 10, 2
+    愛知県, 中部, 23, 3
+    静岡県, 中部, 22, 3
+    岐阜県, 中部, 21, 3
+    新潟県, 中部, 15, 3
+    長野県, 中部, 20, 3
+    山梨県, 中部, 19, 3
+    富山県, 中部, 16, 3
+    石川県, 中部, 17, 3
+    福井県, 中部, 18, 3
+    三重県, 中部, 24, 3
+    大阪府, 関西, 27, 4
+    京都府, 関西, 26, 4
+    兵庫県, 関西, 28, 4
+    奈良県, 関西, 29, 4
+    滋賀県, 関西, 25, 4
+    和歌山県, 関西, 30, 4
+    鳥取県, 中四国, 31, 5
+    島根県, 中四国, 32, 5
+    岡山県, 中四国, 33, 5
+    広島県, 中四国, 34, 5
+    山口県, 中四国, 35, 5
+    徳島県, 中四国, 36, 5
+    香川県, 中四国, 37, 5
+    愛媛県, 中四国, 38, 5
+    高知県, 中四国, 39, 5
+    福岡県, 九州, 40, 6
+    佐賀県, 九州, 41, 6
+    長崎県, 九州, 42, 6
+    熊本県, 九州, 43, 6
+    大分県, 九州, 44, 6
+    宮崎県, 九州, 45, 6
+    鹿児島県, 九州, 46, 6
+    沖縄県, 九州, 47, 6
+];
+
+// 都道府県ソート順マッピング（ApplyMap用）
+PrefSortMap:
+MAPPING LOAD 都道府県, 都道府県Sort RESIDENT 都道府県マスタ_Raw;
+
+// 都道府県マスタ（Dual値適用済み）
+都道府県マスタ:
+LOAD
+    Dual(都道府県, 都道府県Sort) AS 都道府県,
+    Dual(地域, 地域Sort) AS 地域
+RESIDENT 都道府県マスタ_Raw;
+
+DROP TABLE 都道府県マスタ_Raw;
+
+SalesData:
+LOAD
+    'T' & Num(RecNo(), '000') AS トランザクションID,
+    Date(仕入日_Num, 'YYYY-MM-DD') AS 仕入日,
+    Date(仕入日_Num + リードタイム, 'YYYY-MM-DD') AS 売上日,
+    // ApplyMapでソート番号を取得しDual値として格納
+    Dual(都道府県_Raw, ApplyMap('PrefSortMap', 都道府県_Raw, 99)) AS 都道府県,
+    顧客業種,
+    Pick(商品ID, 'ハードウェア', 'ハードウェア', 'ソフトウェア', 'ソフトウェア', 'サービス') AS 商品カテゴリ,
+    Pick(商品ID, 'エンタープライズサーバー', 'ハイエンドPC', 'ERPライセンス', 'BIツールライセンス', 'クラウド導入支援') AS 商品名,
+    数量,
+    仕入単価 * 数量 AS 仕入金額,
+    Round((仕入単価 * 数量) * (1 + 予測マージン), 1000) AS 売上予測,
+    Round((仕入単価 * 数量) * (1 + 実績マージン), 1000) AS 売上実績;
+
+// 中間LOAD：地域_NumからRaw文字列として都道府県を導出
+LOAD
+    仕入日_Num,
+    リードタイム,
+    If(地域_Num = 1, '北海道',
+    If(地域_Num = 2, Pick(Ceil(Rand() * 7),  '東京都', '神奈川県', '埼玉県', '千葉県', '茨城県', '栃木県', '群馬県'),
+    If(地域_Num = 3, Pick(Ceil(Rand() * 10), '愛知県', '静岡県', '岐阜県', '新潟県', '長野県', '山梨県', '富山県', '石川県', '福井県', '三重県'),
+    If(地域_Num = 4, Pick(Ceil(Rand() * 6),  '大阪府', '京都府', '兵庫県', '奈良県', '滋賀県', '和歌山県'),
+    If(地域_Num = 5, Pick(Ceil(Rand() * 9),  '鳥取県', '島根県', '岡山県', '広島県', '山口県', '徳島県', '香川県', '愛媛県', '高知県'),
+                    Pick(Ceil(Rand() * 8),  '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県')))))) AS 都道府県_Raw,
+    顧客業種,
+    商品ID,
+    数量,
+    仕入単価,
+    予測マージン,
+    実績マージン;
+
+// ベースとなる乱数データの生成
+LOAD
+    MakeDate(2024, 1, 1) + Floor(Rand() * (Today() - MakeDate(2024, 1, 1) + 1)) AS 仕入日_Num,
+    Ceil(Rand() * 20) AS リードタイム,
+    Ceil(Rand() * 6) AS 地域_Num,
+    Pick(Ceil(Rand() * 4), '製造業', '小売業', '金融業', '情報通信業') AS 顧客業種,
+    Ceil(Rand() * 5) AS 商品ID,
+    Ceil(Rand() * 15) AS 数量,
+    Pick(Ceil(Rand() * 4), 100000, 300000, 500000, 1000000) AS 仕入単価,
+    Rand() * 0.4 + 0.1 AS 予測マージン,
+    Rand() * 0.5 + 0.05 AS 実績マージン
+AUTOGENERATE 200;
+
+// 都道府県マスタからDual済み地域をSalesDataに結合
+LEFT JOIN (SalesData)
+LOAD 都道府県, 地域
+RESIDENT 都道府県マスタ;
+
+DROP TABLE 都道府県マスタ;
+
+// =============================================
+// マスターカレンダー（売上日に紐づく連続日付テーブル）
+// =============================================
+// まず日付数値を1列だけ生成してから参照
+TempCal:
+LOAD MakeDate(2024, 1, 1) + RowNo() - 1 AS TempDate
+AUTOGENERATE (Today() - MakeDate(2024, 1, 1) + 1);
+
+マスターカレンダー:
+LOAD
+    Date(TempDate, 'YYYY-MM-DD')                                            AS 売上日,
+    Year(TempDate)                                                          AS 年,
+    Dual('Q' & Ceil(Month(TempDate) / 3), Ceil(Month(TempDate) / 3))       AS 四半期,
+    Dual(Year(TempDate) & '/Q' & Ceil(Month(TempDate) / 3),
+         Year(TempDate) * 10 + Ceil(Month(TempDate) / 3))                  AS 年四半期,
+    Dual(Month(TempDate) & '月', Month(TempDate))                          AS 月,
+    Dual(Date(TempDate, 'YYYY/MM'), Year(TempDate) * 100 + Month(TempDate)) AS 年月,
+    Week(TempDate)                                                          AS 週番号,
+    Dual(Date(TempDate, 'WWW'), WeekDay(TempDate))                         AS 曜日
+RESIDENT TempCal;
+
+DROP TABLE TempCal;
