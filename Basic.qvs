@@ -99,3 +99,36 @@ STORE MyTable INTO [lib://QVD/MyTable_$(vDate).qvd] (qvd);
 
 // 読み込み
 LOAD * FROM [lib://QVD/MyTable.qvd] (qvd);
+
+//11. デートアイランドの作成
+// ① Ordersテーブルから最小・最大日付を取得
+Temp:
+LOAD
+    Min(OrderDate) AS minDate,
+    Max(OrderDate) AS maxDate
+Resident Orders;
+
+// ② 変数に設定してTempを破棄
+LET varMinDate = Num(Peek('minDate', 0, 'Temp'));
+LET varMaxDate = Num(Peek('maxDate', 0, 'Temp'));
+DROP Table Temp;
+
+// ③ 最小〜最大日付の連続した日付行を生成
+TempCalendar:
+LOAD
+    Date($(varMinDate) + IterNo() - 1) AS TempDate
+AutoGenerate 1 While $(varMinDate) + IterNo() - 1 <= $(varMaxDate);
+
+// ④ デートアイランドとしてカレンダー項目を追加
+DateIsland:
+LOAD
+    TempDate        AS Date,
+    Year(TempDate)  AS Year,
+    Month(TempDate) AS Month,
+    Day(TempDate)   AS Day,
+    Week(TempDate)  AS Week,
+    WeekDay(TempDate) AS WeekDay
+Resident TempCalendar
+Order By TempDate ASC;
+
+DROP Table TempCalendar;
