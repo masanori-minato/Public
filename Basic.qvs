@@ -43,6 +43,26 @@ LOAD ID, ExtraField FROM [...];
 CONCATENATE (MainTable)
 LOAD ID, Name FROM [...];
 
+//5b. Resident LOAD の基本（NoConcatenate + DROP）
+TempTable:
+LOAD
+    ID,
+    Name,
+    Value
+FROM [lib://DataFiles/source.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+FinalTable:
+NoConcatenate
+LOAD
+    ID,
+    Name,
+    Value * 1.1 AS ValueAdjusted
+RESIDENT TempTable
+WHERE Value > 0;
+
+DROP TABLE TempTable;
+
 //6. WHERE / GROUP BY
 LOAD
     Category,
