@@ -1,0 +1,81 @@
+//1. インラインデータ読み込み
+MyTable:
+LOAD * INLINE [
+    ID, Name, Value
+    1, Alice, 100
+    2, Bob,   200
+    3, Carol, 300
+];
+
+//2. CSVファイル読み込み
+MyTable:
+LOAD
+    ID,
+    Name,
+    Value
+FROM [lib://DataFiles/myfile.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+//3. Excelファイル読み込み
+MyTable:
+LOAD
+    ID,
+    Name,
+    Value
+FROM [lib://DataFiles/myfile.xlsx]
+(ooxml, embedded labels, table is Sheet1);
+
+//4. データ変換（日付・文字列）
+LOAD
+    ID,
+    Date(Floor(DateField), 'YYYY/MM/DD')                        AS DateFormatted,
+    Date(Date#(DateStr, 'YYYYMMDD'), 'YYYY/MM/DD')              AS DateFromStr,    // 例: '20240101' → 2024/01/01
+    Upper(Name)                          AS NameUpper,
+    If(Value > 100, 'High', 'Low')       AS Category
+FROM [...];
+
+//5. JOIN / CONCATENATE
+// Left Join
+LEFT JOIN (MainTable)
+LOAD ID, ExtraField FROM [...];
+
+// Concatenate
+CONCATENATE (MainTable)
+LOAD ID, Name FROM [...];
+
+//6. WHERE / GROUP BY
+LOAD
+    Category,
+    Sum(Value) AS TotalValue
+FROM [...] WHERE Value > 0
+GROUP BY Category;
+
+//7. 変数定義
+LET vToday    = Today();
+SET vMaxYear  = 2025;
+//8. ループ処理（For〜Next）
+
+FOR i = 1 TO 3
+    LOAD '$(i)' AS Num AUTOGENERATE 1;
+NEXT i
+
+//9. Mapping（コード変換）
+StatusMap:
+MAPPING LOAD * INLINE [
+    Code, Label
+    1,    Active
+    0,    Inactive
+];
+
+LOAD
+    ID,
+    ApplyMap('StatusMap', StatusCode, 'Unknown') AS StatusLabel
+FROM [...];
+
+//10. QVDの書き出し・読み込み
+// 書き出し（日付付きファイル名）
+LET vDate = Date(Today(), 'YYYYMMDD');
+STORE MyTable INTO [lib://QVD/MyTable_$(vDate).qvd] (qvd);
+
+// 読み込み
+LOAD * FROM [lib://QVD/MyTable.qvd] (qvd);
