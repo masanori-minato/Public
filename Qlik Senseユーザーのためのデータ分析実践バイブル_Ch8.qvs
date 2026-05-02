@@ -1,0 +1,359 @@
+////8.1.1 簡単なロードスクリプトの作成と実行
+//図8.1.2 挿入されたスクリプト
+LOAD
+    顧客ID,
+    姓,
+    名,
+    性別,
+    血液型,
+    生年月日,
+    年齢
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 顧客マスタ);
+
+LOAD
+    受注日,
+    顧客コード,
+    購入金額
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+//スクリプトを修正して変換処理を追加
+LOAD
+    顧客ID,
+    姓 & ' ' & 名 AS 氏名,
+    性別,
+    //血液型,
+    生年月日,
+    Replace(年齢, '歳', '') AS 年齢
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 顧客マスタ);
+
+LOAD
+    受注日,
+    顧客コード AS 顧客ID,
+    購入金額
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+////8.1.2 メッセージ出力やスクリプト途中での実行停止
+LOAD
+    顧客ID,
+    姓 & ' ' & 名 AS 氏名,
+    性別,
+    //血液型,
+    生年月日,
+    Replace(年齢, '歳', '') AS 年齢
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 顧客マスタ);
+
+Trace '顧客マスタ取り込み完了';
+Exit Script;
+
+LOAD
+    受注日,
+    顧客コード AS 顧客ID,
+    購入金額
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+////8.2.1 外部データの追加
+//図8.2.1 8.1.1のロードスクリプト
+LOAD
+    顧客ID,
+    姓 & ' ' & 名 AS 氏名,
+    性別,
+    //血液型,
+    生年月日,
+    Replace(年齢, '歳', '') AS 年齢
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 顧客マスタ);
+
+LOAD
+    受注日,
+    顧客コード AS 顧客ID,
+    購入金額
+FROM [lib://DataFiles/売上データ.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+//図8.2.2 挿入されたスクリプト
+LIB CONNECT TO 'Microsoft_SQL_Server_qlik-server.database.windows.net';
+
+LOAD ProductCategoryID, 
+	ParentProductCategoryID, 
+	Name, 
+	rowguid, 
+	ModifiedDate;
+
+[ProductCategory]:
+SELECT ProductCategoryID,
+	ParentProductCategoryID,
+	Name,
+	rowguid,
+	ModifiedDate
+FROM "qlik-db".SalesLT.ProductCategory;
+
+
+////8.2.2 Qlik Sense 内部でのデータ生成
+//図8.2.4 「LOAD * Inline」でデータを入力
+売上データ:
+Load * Inline [
+	国,売上,売上原価
+	US,100,80
+	UK,200,180
+	JP,300,250
+];
+
+//図8.2.6 Autogenerateで生成するデータの件数を指定
+テストデータ:
+Load 
+	RowNo() AS NO,
+	'AAAAA' AS Char
+Autogenerate(10);
+
+//図8.2.7 文字列、数値、日付、時間などのデータを生成するための変数を定義
+SET vRandChar = Repeat(Chr(Floor(Rand() * 94 ) + 33), $1); //$1個の文字
+SET vRandCharU = Repeat(Chr(Floor(Rand() * 26 ) + 65), $1); //$1個の上段文字
+SET vRandCharL = Repeat(Chr(Floor(Rand() * 26 ) + 97), $1); //$1個の下段文字
+SET vRandNo = Round(Rand() * ($2 - $1)) + $1; //$1 ～ $2の数値
+SET vRandDt = Date(Floor(Rand() * (YearEnd(MakeDate($2)) - MakeDate($1))) + Num(MakeDate($1)), 'YYYY-MM-DD'); // $1 ～ $2の日付
+SET vRandTime = MakeTime(Floor(Rand() * ($2 - $1) + $1), Floor(Rand() * 60), Floor(Rand() * 60)); //$1 ～ $2の時間
+SET vRandND = Round(NormInv(Rand(), $1, $2), $3); //平均 $1, 標準偏差 $2, 精度 $3の正規分布の値
+
+//図8.2.8 定義した変数を利用して「LOAD ... Autogenerate」でデータを生成
+テストデータ:
+Load 
+    $(vRandChar(1)) AS 文字,
+    $(vRandCharU(5)) AS 上段文字,
+    $(vRandCharL(10)) AS 下段文字,
+    $(vRandNo(0,100)) AS 数値,
+    $(vRandDt(2010,2015)) AS 日付,
+    $(vRandTime(0,24)) AS 時間,
+    $(vRandND(0,1,.1)) AS 正規分布
+Autogenerate (1000);
+
+
+////8.2.3 連番項目の追加
+連番テスト:
+Load
+	RowNo() AS ID,
+	製品,
+	売上
+Inline [
+製品,売上
+A,100
+B,200
+C,300
+];
+
+////8.2.4 データ変換処理の流れ
+//図8.2.12 日付データに変換するための記述が冗長な表現となってしまっている例
+LOAD
+	製品名,
+	Date(Date#(発売日, 'YYYYMMDD') ) AS 発売日,
+	Today() - Date(Date#(発売日, 'YYYYMMDD') ) AS 経過日,
+	If(AddYears(Date(Date#(発売日, 'YYYYMMDD')), 3) > Today(), 'Yes', 'No') AS 保守状況
+FROM [lib://DataFiles/保守データ.xlsx]
+(ooxml, embedded labels, table is 保守データ);
+
+//図8.2.13 「先行するLoad文」を利用した例
+LOAD
+	*,
+	Today()-発売日 AS 経過日,
+	If(AddYears(発売日, 3) > Today(), 'Yes', 'No') AS 保守状況;
+LOAD
+	製品名,
+	Date(Date#(発売日, 'YYYYMMDD') ) AS 発売日
+FROM [lib://DataFiles/保守データ.xlsx]
+(ooxml, embedded labels, table is 保守データ);
+
+//図8.2.14 Resident Loadを利用した例
+一時テーブル:
+LOAD
+	製品名,
+	Date(Date#(発売日, 'YYYYMMDD')) AS 発売日
+FROM [lib://DataFiles/保守データ.xlsx]
+(ooxml, embedded labels, table is 保守データ);
+
+保守データ:
+NoConcatenate LOAD
+	*,
+	Today()-発売日 AS 経過日,
+	 If(AddYears(発売日, 3) > Today(), 'Yes', 'No') AS 保守状況
+Resident 一時テーブル;
+
+Drop table 一時テーブル;
+
+////8.2.5 データの絞り込み
+//図8.2.15 Where句を使って、データを絞り込む
+LOAD
+	国ID,
+	国名
+FROM [lib://DataFiles/国マスタ.xlsx]
+(ooxml, embedded labels, table is 国マスタ)
+Where 国ID<= 2;
+
+//図8.2.17 Where Existsですでにアプリ内に存在する「国ID」を含む行のみを取り込む
+LOAD
+	国ID,
+	国名
+FROM [lib://DataFiles/国マスタ.xlsx]
+(ooxml, embedded labels, table is 国マスタ)
+Where 国ID<= 2;
+
+LOAD
+	顧客名,
+	国ID
+FROM [lib://DataFiles/顧客マスタ.xlsx]
+(ooxml, embedded labels, table is 顧客マスタ)
+Where Exists(国ID);
+
+////8.2.6 データの集計とソート
+//図8.2.19 「従業員ID」、「年月」ごとにグループ化して「売上実績」と「顧客訪問数」を集計
+営業活動データ:
+LOAD
+    従業員ID,
+    年月,
+    Sum(売上実績) AS 売上実績,
+    Sum(顧客訪問数) AS 顧客訪問数
+FROM [lib://DataFiles/営業活動データ.xlsx]
+(ooxml, embedded labels, table is 営業活動データ)
+Group by  従業員ID, 年月;
+
+//図8.2.21 「従業員ID」、「年月」で昇順にソート
+営業活動データ_ソート済み:
+Noconcatenate Load * Resident 営業活動データ
+Order by 従業員ID, 年月;
+
+Drop table 営業活動データ;
+
+//図8.2.24 Dual関数で都道府県のソート順を指定
+LOAD
+    県番号,
+    Dual(都道府県名, ソート順) AS 都道府県////8.3.1 QVD ファイルへのデータ保存
+//図8.3.1 取り込んだ契約データ.xlsxを契約データ.qvdとして保存
+契約データ:
+LOAD
+    契約番号,
+    契約日,
+    顧客コード,
+    契約金額
+FROM [lib://DataFiles/契約データ.xlsx]
+(ooxml, embedded labels, table is 契約データ);
+
+Store 契約データ Into [lib://DataFiles/契約データ.qvd];
+
+////8.3.2 CSVファイルへのデータ保存
+//図8.3.3 CSVファイルの保存
+Store 契約データ Into [lib://DataFiles/契約データ.csv](txt);
+
+////8.3.3 QVDファイルからのデータ取り込み
+//図8.3.4 QVDファイルからのデータ取り込み
+LOAD
+    契約番号,
+    契約日,
+    顧客コード,
+    契約金額
+FROM [lib://DataFiles/契約データ.qvd]
+(qvd);
+
+//図8.3.6 アプリの全テーブルを一度に保存
+For i = NoOfTables() To 0 Step -1 
+  Let vTableName = TableName($(i));
+  If Not isNull(NoOfRows('$(vTableName)')) Then
+       Store $(vTableName) Into  [lib://DataFiles/$(vTableName).qvd](qvd);
+  EndIf
+Next
+
+    ソート順
+FROM [lib://DataFiles/都道府県データ.xlsx]
+(ooxml, embedded labels, table is Sheet1);
+
+////8.4.1 テーブルの連結
+//図8.4.1 項目名と項目数が合致する2つのファイルの取り込み
+LOAD
+    受注日,
+    商品名,
+    販売価格
+FROM [lib://DataFiles/売上データ_2020年3月.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+LOAD
+    受注日,
+    商品名,
+    販売価格
+FROM [lib://DataFiles/売上データ_2020年4月.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+//図8.4.3 項目数が異なるファイルの追加
+LOAD
+    受注日,
+    商品名,
+    販売価格,
+    顧客名
+FROM [lib://DataFiles/売上データ_2020年5月.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+//図8.4.6 Concatenateを追加して強制連結
+Concatenate LOAD
+    受注日,
+    商品名,
+    販売価格,
+    顧客名
+FROM [lib://DataFiles/売上データ_2020年5月.xlsx]
+(ooxml, embedded labels, table is 売上データ);
+
+
+////8.4.2 自動的な紐付けや連結の無効化：Qualify
+//図8.4.8 Qualifyで自動的な紐付けや連結を無効化する
+Qualify *;
+
+LOAD
+    年月,
+    部門,
+    製品名,
+    金額
+FROM [lib://DataFiles/実績データ.xlsx]
+(ooxml, embedded labels, table is 実績データ);
+
+LOAD
+    年月,
+    部門,
+    金額
+FROM [lib://DataFiles/予算データ.xlsx]
+(ooxml, embedded labels, table is 予算データ);
+
+Unqualify  *;
+
+
+////8.4.3 テーブルデータの結合
+//図8.4.10 MappingでMappingテーブルを作成
+Map_Country:
+Mapping LOAD
+    国ID,
+    国名
+FROM [lib://DataFiles/国マスタ.xlsx]
+(ooxml, embedded labels, table is 国マスタ);
+
+//図8.4.11 ApplyMap関数でMappingテーブルを参照して「国ID」を「国名」に置き換え
+顧客マスタ:
+LOAD
+    顧客名,
+    ApplyMap('Map_Country',国ID,Null()) AS 国名
+FROM [lib://DataFiles/顧客マスタ.xlsx]
+(ooxml, embedded labels, table is 顧客マスタ);
+
+//図8.4.13 「国マスタ」と「顧客マスタ」をJoinして結合
+LOAD
+    顧客名,
+    国ID
+FROM [lib://DataFiles/顧客マスタ.xlsx]
+(ooxml, embedded labels, table is 顧客マスタ);
+
+Join LOAD
+    国ID,
+    国名
+FROM [lib://DataFiles/国マスタ.xlsx]
+(ooxml, embedded labels, table is 国マスタ);
+
+
