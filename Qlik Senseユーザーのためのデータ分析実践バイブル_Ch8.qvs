@@ -230,7 +230,12 @@ Drop table 営業活動データ;
 //図8.2.24 Dual関数で都道府県のソート順を指定
 LOAD
     県番号,
-    Dual(都道府県名, ソート順) AS 都道府県////8.3.1 QVD ファイルへのデータ保存
+    Dual(都道府県名, ソート順) AS 都道府県
+    ソート順
+FROM [lib://DataFiles/都道府県データ.xlsx]
+(ooxml, embedded labels, table is Sheet1); 
+
+////8.3.1 QVD ファイルへのデータ保存
 //図8.3.1 取り込んだ契約データ.xlsxを契約データ.qvdとして保存
 契約データ:
 LOAD
@@ -264,10 +269,6 @@ For i = NoOfTables() To 0 Step -1
        Store $(vTableName) Into  [lib://DataFiles/$(vTableName).qvd](qvd);
   EndIf
 Next
-
-    ソート順
-FROM [lib://DataFiles/都道府県データ.xlsx]
-(ooxml, embedded labels, table is Sheet1);
 
 ////8.4.1 テーブルの連結
 //図8.4.1 項目名と項目数が合致する2つのファイルの取り込み
