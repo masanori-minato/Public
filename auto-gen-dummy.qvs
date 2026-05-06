@@ -127,8 +127,24 @@ LOAD
          Year(TempDate) * 10 + Ceil(Month(TempDate) / 3))                  AS 年四半期,
     Dual(Month(TempDate) & '月', Month(TempDate))                          AS 月,
     Dual(Date(TempDate, 'YYYY/MM'), Year(TempDate) * 100 + Month(TempDate)) AS 年月,
+    Year(TempDate) * 100 + Month(TempDate)                                  AS 年月キー,
     Week(TempDate)                                                          AS 週番号,
     Dual(Date(TempDate, 'WWW'), WeekDay(TempDate))                         AS 曜日
 RESIDENT TempCal;
 
 DROP TABLE TempCal;
+
+// =============================================
+// 年月範囲選択用マスタ（ドロップダウン用の非関連テーブル）
+// =============================================
+// フィルターパネルや変数入力のドロップダウンで単一選択し、
+// チャート側のSet Analysisで開始年月～終了年月の範囲に絞り込む。
+開始年月選択:
+LOAD DISTINCT
+    年月 AS 開始年月
+RESIDENT マスターカレンダー;
+
+終了年月選択:
+LOAD DISTINCT
+    年月 AS 終了年月
+RESIDENT マスターカレンダー;
