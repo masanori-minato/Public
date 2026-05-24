@@ -1,0 +1,120 @@
+SET vMonthStart = '2024/04';
+SET vMonthEnd = '2026/05';
+SET vCsvRoot = 'lib://Dev_Sandbox:DataFiles';
+
+// 累計2Yの画面入力用変数。変数入力のドロップダウンで YYYY/MM をセットする。
+// 初期値は開始年月が当月の2年前、終了年月が当月。
+LET vCum2YStart = Date(AddMonths(MonthStart(Today()), -24), 'YYYY/MM');
+LET vCum2YEnd = Date(MonthStart(Today()), 'YYYY/MM');
+
+// 累計2YのSet分析用変数。
+// vCum2YStartDate は vCum2YStart の月初日、vCum2YEndDate は vCum2YEnd の月末日に変換する。
+// 変数入力で vCum2YStart/vCum2YEnd が変わった後も再評価されるよう、定義内に $(vCum2YStart)/$(vCum2YEnd) を残す。
+LET vCum2YStartDate = 'Date(MonthStart(Date#(' & Chr(39) & '$' & '(vCum2YStart)' & Chr(39) & ', ' & Chr(39) & 'YYYY/MM' & Chr(39) & ')), ' & Chr(39) & 'YYYY/MM/DD' & Chr(39) & ')';
+LET vCum2YEndDate = 'Date(MonthEnd(Date#(' & Chr(39) & '$' & '(vCum2YEnd)' & Chr(39) & ', ' & Chr(39) & 'YYYY/MM' & Chr(39) & ')), ' & Chr(39) & 'YYYY/MM/DD' & Chr(39) & ')';
+
+// 変数入力のドロップダウン候補を作るための一時テーブル。
+// 当月の2年前から当月までの25か月を YYYY/MM で作成する。
+_累計2Y年月リスト:
+LOAD
+    Date(AddMonths(MonthStart(Today()), IterNo() - 25), 'YYYY/MM') as 累計2Y年月,
+    Num(AddMonths(MonthStart(Today()), IterNo() - 25)) as 累計2Y年月表示順
+AUTOGENERATE 1
+WHILE IterNo() <= 25;
+
+// 変数入力のDynamic values用。Qlikの変数入力は | 区切り文字列を候補リストとして扱う。
+_累計2Y年月ドロップダウン:
+LOAD
+    Concat(累計2Y年月, '|', 累計2Y年月表示順) as 累計2Y年月ドロップダウン値
+Resident _累計2Y年月リスト;
+
+// 変数入力のDynamic valuesには以下を指定する。
+// vCum2YStart: =$(vCum2YStartMonthList)
+// vCum2YEnd  : =$(vCum2YEndMonthList)
+// 文字列として評価させるため、リスト全体をシングルクォートで囲んでおく。
+LET vCum2YStartMonthList = Chr(39) & Peek('累計2Y年月ドロップダウン値', 0, '_累計2Y年月ドロップダウン') & Chr(39);
+LET vCum2YEndMonthList = Chr(39) & Peek('累計2Y年月ドロップダウン値', 0, '_累計2Y年月ドロップダウン') & Chr(39);
+
+DROP Tables _累計2Y年月リスト, _累計2Y年月ドロップダウン;
+
+契約車両:
+LOAD
+    販売会社コード,
+    車両ID,
+    契約ID
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_契約車両.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+登録車両:
+// 新車車両
+LOAD
+    車両ID,
+    販売会社コード as 車両_販売会社コード,
+    車両名称,
+    車種区分,
+    Date(Date#(登録完了日, 'YYYY/MM/DD'), 'YYYY/MM/DD') as 登録完了日,
+    新中区分コード
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_新車車両.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+// 中古車車両
+Concatenate (登録車両)
+LOAD
+    車両ID,
+    販売会社コード as 車両_販売会社コード,
+    車両名称,
+    車種区分,
+    Date(Date#(登録完了日, 'YYYY/MM/DD'), 'YYYY/MM/DD') as 登録完了日,
+    新中区分コード
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_中古車車両.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+契約:
+LOAD
+    契約ID,
+    販売会社コード as 契約_販売会社コード,
+    Date(Date#(納車完了日, 'YYYY/MM/DD'), 'YYYY/MM/DD') as 納車完了日,
+    契約ステータス
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_契約.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+都道府県マスタ:
+LOAD
+    Text(都道府県コード) as 都道府県コード,
+    Dual(都道府県, 都道府県マスタ_表示順) as 都道府県
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_都道府県マスタ.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+販売会社マスタ:
+LOAD
+    販売会社コード,
+    販売会社名,
+    Text(都道府県コード) as 都道府県コード,
+    担当エリア
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_販売会社マスタ.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+販売拠点マスタ:
+LOAD
+    販売拠点コード,
+    販売拠点名,
+    販売会社コード,
+    Text(都道府県コード) as _拠点都道府県コード
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_販売拠点マスタ.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+LEFT JOIN (販売拠点マスタ)
+LOAD
+    都道府県コード as _拠点都道府県コード,
+    都道府県 as 拠点所在都道府県
+Resident 都道府県マスタ;
+
+DROP Field _拠点都道府県コード From 販売拠点マスタ;
+
+台数計画:
+LOAD
+    販売会社コード,
+    計画年月,
+    計画台数
+FROM [$(vCsvRoot)/日報見通しサンプル2Y_台数計画.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
