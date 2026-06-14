@@ -1,3 +1,30 @@
+"""
+===============================================================================
+ Parquetファイル一括CSV変換プログラム
+===============================================================================
+
+指定フォルダー内のParquetファイルを読み込み、ファイルごとにCSV形式へ
+変換します。出力するCSVの文字コードはオプションで指定できます。
+
+デフォルトの入出力先:
+    入力: ~/Downloads/Parquet
+    出力: ~/Downloads/Parquet/csv_out
+
+主な機能:
+    - 複数のParquetファイルを一括変換
+    - CSVの出力文字コードを指定可能
+    - 既存ファイルのスキップまたは上書き
+
+実行例:
+    python convert_parquet_to_csv.py
+    python convert_parquet_to_csv.py --encoding cp932 --overwrite
+    python convert_parquet_to_csv.py -i "C:\\input" -o "C:\\output"
+
+必要なライブラリ:
+    pandas、pyarrow
+===============================================================================
+"""
+
 from __future__ import annotations
 
 import argparse

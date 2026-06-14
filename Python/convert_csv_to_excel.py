@@ -1,3 +1,32 @@
+"""
+===============================================================================
+ CSVファイル一括Excel変換プログラム
+===============================================================================
+
+指定フォルダー内のCSVファイルを読み込み、ファイルごとにExcel形式（.xlsx）へ
+変換します。日本語Windowsで使われる代表的な文字コードを順番に試すため、
+UTF-8やShift_JIS（CP932）のCSVをまとめて処理できます。
+
+デフォルトの入出力先:
+    入力: ~/Downloads/CSV
+    出力: ~/Downloads/CSV/excel_out
+
+主な機能:
+    - 複数のCSVファイルを一括変換
+    - utf-8-sig、utf-8、cp932の文字コードに対応
+    - 先頭が0の値を保持する全列文字列読み込み
+    - 既存ファイルのスキップまたは上書き
+
+実行例:
+    python convert_csv_to_excel.py
+    python convert_csv_to_excel.py --all-string --overwrite
+    python convert_csv_to_excel.py -i "C:\\input" -o "C:\\output"
+
+必要なライブラリ:
+    pandas、openpyxl
+===============================================================================
+"""
+
 from __future__ import annotations
 
 import argparse

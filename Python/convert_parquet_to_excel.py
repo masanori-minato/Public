@@ -1,3 +1,32 @@
+"""
+===============================================================================
+ Parquetファイル一括Excel変換プログラム
+===============================================================================
+
+指定フォルダー内のParquetファイルを読み込み、ファイルごとにExcel形式
+（.xlsx）へ変換します。Excelの最大行数を超えるファイルはエラーとして
+扱い、ほかのファイルの変換処理を継続します。
+
+デフォルトの入出力先:
+    入力: ~/Downloads/Parquet
+    出力: ~/Downloads/Parquet/excel_out
+
+主な機能:
+    - 複数のParquetファイルを一括変換
+    - Excelのシート名を指定可能
+    - Excelの最大行数を事前に確認
+    - 既存ファイルのスキップまたは上書き
+
+実行例:
+    python convert_parquet_to_excel.py
+    python convert_parquet_to_excel.py --sheet-name sales --overwrite
+    python convert_parquet_to_excel.py -i "C:\\input" -o "C:\\output"
+
+必要なライブラリ:
+    pandas、pyarrow、openpyxl
+===============================================================================
+"""
+
 from __future__ import annotations
 
 import argparse
