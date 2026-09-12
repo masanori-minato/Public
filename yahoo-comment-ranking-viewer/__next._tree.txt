@@ -1,2 +1,2 @@
 :HL["/Public/yahoo-comment-ranking-viewer/_next/static/chunks/42x-zap7olhbg.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"i35fJBzEZd8I8WhJ_j-QI"}
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"RYCKKXZ2zH5XH0d698YPw"}
